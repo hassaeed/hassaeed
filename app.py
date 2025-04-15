@@ -23,7 +23,9 @@ def process_image(img_np):
 
     for cnt in contours:
         area = cv2.contourArea(cnt)
-        if 100 < area < 10000:  # You can adjust the size range as per the image
+
+        # Adjust the area thresholds as needed
+        if 50 < area < 50000:  # Lower limit 50 and upper limit 50000 (you can adjust this based on image size)
             shape_count += 1
             # Draw all contours
             cv2.drawContours(result, [cnt], -1, (0, 255, 0), 2)
