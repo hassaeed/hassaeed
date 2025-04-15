@@ -5,7 +5,7 @@ from PIL import Image
 
 st.set_page_config(page_title="Diatom Shape Detector", layout="wide")
 st.title("🔬 Diatom Shape Detector")
-st.write("Upload one or more images to detect Cocconeis (elliptical) and Epithemia (boomerang-shaped) diatoms.")
+st.write("Upload one or more images to detect Cocconeis (elliptical) and Epithemia (boomerang-like) diatoms.")
 
 uploaded_files = st.file_uploader("Upload image(s)", type=["jpg", "jpeg", "png", "tiff"], accept_multiple_files=True)
 
@@ -13,9 +13,9 @@ def classify_shape(contour):
     if len(contour) < 5:
         return "Unknown"
 
-    # Fit ellipse to the contour for Cocconeis
+    # Fit ellipse and extract axis ratio
     ellipse = cv2.fitEllipse(contour)
-    (center, axes, orientation) = ellipse
+    (_, axes, _) = ellipse
     major, minor = axes
     ratio = minor / major
 
@@ -38,33 +38,43 @@ def process_image(img_np):
 
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
-    # Apply adaptive thresholding
+    # Apply adaptive thresholding to detect edges
     thresh = cv2.adaptiveThreshold(
         blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 11, 2
     )
 
-    # Find contours
+    # Find contours of the detected areas
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     result = img_np.copy()
 
+    counts = {"Cocconeis (ellipse)": 0, "Epithemia (boomerang)": 0, "Unknown": 0}
+
     for cnt in contours:
         area = cv2.contourArea(cnt)
-        if 100 < area < 250:  # Filter based on the size of the contour
+        if 100 < area < 250:  # Filter based on the size of the contour (adjusted to a smaller range)
             label = classify_shape(cnt)
             if label != "Unknown":  # Only process known shapes
+                counts[label] += 1
 
-                # Draw the contour on the image
+                # Draw the contour of the shape on the image
                 cv2.drawContours(result, [cnt], -1, (0, 255, 0), 2)  # Green outline for detection
 
-    return result
+    return result, counts
 
 if uploaded_files:
     for uploaded_file in uploaded_files:
         image = Image.open(uploaded_file).convert("RGB")
         img_np = np.array(image)
 
-        processed_img = process_image(img_np)
+        # Process the image to detect Cocconeis and Epithemia
+        processed_img, shape_counts = process_image(img_np)
 
         st.subheader(f"Processed Results for: {uploaded_file.name}")
         st.image(processed_img, caption=f"Processed Image: {uploaded_file.name}", use_container_width=True)
+
+        # Display the count of detected shapes
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Cocconeis", shape_counts['Cocconeis (ellipse)'])
+        col2.metric("Epithemia", shape_counts['Epithemia (boomerang)'])
+        col3.metric("Unknown", shape_counts['Unknown'])
