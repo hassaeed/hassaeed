@@ -34,16 +34,23 @@ if uploaded_file is not None:
     image = Image.open(uploaded_file)
     img_np = np.array(image.convert("RGB"))
 
-    # Convert to grayscale and apply Gaussian blur
+    # Convert to grayscale
     gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
-    # Apply adaptive thresholding to highlight relevant regions
-    thresh = cv2.adaptiveThreshold(
-        blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 11, 2
-    )
+    # Apply CLAHE to improve contrast, especially for darker regions
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    contrast_enhanced = clahe.apply(gray)
 
-    # Use morphological closing to close gaps in contours
+    # Gaussian blur to reduce noise
+    blurred = cv2.GaussianBlur(contrast_enhanced, (5, 5), 0)
+
+    # Thresholding: Try different methods (simple thresholding or adaptive thresholding)
+    _, thresh = cv2.threshold(blurred, 50, 255, cv2.THRESH_BINARY_INV)  # Change threshold value to suit your image
+
+    # Alternatively, you could still try adaptive thresholding:
+    # thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+
+    # Use morphological closing to close small gaps in contours
     kernel = np.ones((5, 5), np.uint8)
     morph_close = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
 
