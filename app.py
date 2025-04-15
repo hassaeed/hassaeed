@@ -27,18 +27,15 @@ def classify_shape(contour):
         return "Unknown"
 
 def process_image(img_np):
-    # Convert to grayscale and enhance contrast
     gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
     gray = cv2.equalizeHist(gray)
 
-    # Thresholding
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
     thresh = cv2.adaptiveThreshold(
         blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
         cv2.THRESH_BINARY_INV, 11, 2
     )
 
-    # Find outer contours only
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     result = img_np.copy()
@@ -46,19 +43,12 @@ def process_image(img_np):
 
     for cnt in contours:
         area = cv2.contourArea(cnt)
-        if 100 < area < 10000:  # Filter out noise and large blobs
+        if 100 < area < 10000:
             label = classify_shape(cnt)
             counts[label] += 1
 
-            # Draw outer shape
+            # Only draw the contour (no label text)
             cv2.drawContours(result, [cnt], -1, (0, 255, 0), 2)
-
-            # Label the center
-            M = cv2.moments(cnt)
-            if M["m00"] != 0:
-                cX = int(M["m10"] / M["m00"])
-                cY = int(M["m01"] / M["m00"])
-                cv2.putText(result, label, (cX - 50, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
     return result, counts
 
