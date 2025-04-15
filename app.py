@@ -7,7 +7,8 @@ st.set_page_config(page_title="Diatom Shape Detector", layout="wide")
 st.title("🔬 Diatom Shape Detector")
 st.write("Upload one or more images to detect Cocconeis (elliptical) and Epithemia (coffee-bean) diatoms.")
 
-uploaded_files = st.file_uploader("Upload image(s)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
+# Update the file_uploader to accept .tif files
+uploaded_files = st.file_uploader("Upload image(s)", type=["jpg", "jpeg", "png", "tif", "tiff"], accept_multiple_files=True)
 
 def classify_shape(contour):
     if len(contour) < 5:
@@ -70,6 +71,7 @@ def process_image(img_np):
 
 if uploaded_files:
     for uploaded_file in uploaded_files:
+        # Open the image using PIL and convert to RGB
         image = Image.open(uploaded_file).convert("RGB")
         img_np = np.array(image)
         processed_img, shape_counts = process_image(img_np)
