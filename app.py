@@ -2,7 +2,6 @@ import streamlit as st
 import numpy as np
 import cv2
 from PIL import Image
-import io
 
 st.set_page_config(page_title="Diatom Shape Detector", layout="wide")
 st.title("🔬 Diatom Shape Detector")
@@ -70,27 +69,12 @@ def process_image(img_np):
 
     return result, counts
 
-def convert_tif_to_png(tif_file):
-    """Convert TIFF file to PNG format in memory."""
-    image = Image.open(tif_file)
-    output_png = io.BytesIO()  # A memory buffer for the PNG
-    image.save(output_png, format="PNG")
-    output_png.seek(0)  # Rewind the buffer to the beginning
-    return output_png
-
 if uploaded_files:
     for uploaded_file in uploaded_files:
         file_name = uploaded_file.name  # Store the original file name
 
-        # If the uploaded file is a TIFF, convert it to PNG
-        if uploaded_file.type in ["image/tiff", "image/x-tiff"]:
-            # Convert the TIFF file to PNG in memory
-            uploaded_file = convert_tif_to_png(uploaded_file)
-            image = Image.open(uploaded_file).convert("RGB")
-        else:
-            # For other image formats (jpg, jpeg, png), load directly
-            image = Image.open(uploaded_file).convert("RGB")
-        
+        # Open the image directly (no need for conversion since Streamlit supports TIFF)
+        image = Image.open(uploaded_file).convert("RGB")
         img_np = np.array(image)
         processed_img, shape_counts = process_image(img_np)
 
