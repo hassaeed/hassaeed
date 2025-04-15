@@ -51,8 +51,8 @@ def process_image(img_np):
     for cnt in contours:
         area = cv2.contourArea(cnt)
         
-        # Consider contours with an area between 100px and 5000px
-        if 100 < area < 5000:
+        # Increase the area threshold to detect larger shapes
+        if 150 < area < 10000:  # You can adjust this threshold range further
             label = classify_shape(cnt)
             counts[label] += 1
 
