@@ -13,17 +13,15 @@ def classify_shape(contour):
     if len(contour) < 5:
         return "Unknown"
 
-    ellipse_score = 0
-    bean_score = 0
-
+    # Fit ellipse and extract axis ratio
     ellipse = cv2.fitEllipse(contour)
     (_, axes, _) = ellipse
-    major, minor = axes
-
+    major, minor = max(axes), min(axes)
     ratio = minor / major
-    if 0.7 <= ratio <= 0.95:
+
+    if 0.75 <= ratio <= 0.95:
         return "Cocconeis (ellipse)"
-    elif 0.3 <= ratio < 0.6:
+    elif 0.3 <= ratio < 0.65:
         return "Epithemia (coffee-bean)"
     else:
         return "Unknown"
@@ -42,12 +40,19 @@ def process_image(img_np):
 
     for cnt in contours:
         area = cv2.contourArea(cnt)
-        if 100 < area < 5000:
+        if 100 < area < 10000:
             label = classify_shape(cnt)
-            x, y, w, h = cv2.boundingRect(cnt)
-            cv2.rectangle(result, (x, y), (x+w, y+h), (0, 255, 0), 2)
-            cv2.putText(result, label, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
             counts[label] += 1
+
+            # Draw full shape (contour), not just bounding box
+            cv2.drawContours(result, [cnt], -1, (0, 255, 0), 2)
+
+            # Calculate center for placing the label
+            M = cv2.moments(cnt)
+            if M["m00"] != 0:
+                cX = int(M["m10"] / M["m00"])
+                cY = int(M["m01"] / M["m00"])
+                cv2.putText(result, label, (cX - 50, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
     return result, counts
 
