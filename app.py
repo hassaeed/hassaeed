@@ -5,21 +5,31 @@ from PIL import Image
 
 st.set_page_config(page_title="Diatom Shape Detector", layout="wide")
 st.title("🔬 Diatom Shape Detector")
-st.write("Upload one or more images to detect Cocconeis (elliptical) and Epithemia (coffee-bean) diatoms.")
+st.write("Upload image(s) to detect Cocconeis (ellipse), Epithemia (coffee-bean), and Round diatoms.")
 
 uploaded_files = st.file_uploader("Upload image(s)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
 
 def classify_shape(contour):
-    if len(contour) < 5:
+    area = cv2.contourArea(contour)
+    perimeter = cv2.arcLength(contour, True)
+
+    if perimeter == 0:
         return "Unknown"
 
-    # Fit ellipse and extract axis ratio
-    ellipse = cv2.fitEllipse(contour)
-    (_, axes, _) = ellipse
-    major, minor = max(axes), min(axes)
-    ratio = minor / major
+    circularity = 4 * np.pi * area / (perimeter * perimeter)
 
-    if 0.75 <= ratio <= 0.95:
+    # Optional: Draw ellipse if contour is big enough
+    if len(contour) >= 5:
+        ellipse = cv2.fitEllipse(contour)
+        (_, axes, _) = ellipse
+        major, minor = max(axes), min(axes)
+        ratio = minor / major
+    else:
+        ratio = 0
+
+    if circularity > 0.82:
+        return "Round"
+    elif 0.7 <= ratio <= 0.95:
         return "Cocconeis (ellipse)"
     elif 0.3 <= ratio < 0.65:
         return "Epithemia (coffee-bean)"
@@ -36,18 +46,23 @@ def process_image(img_np):
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     result = img_np.copy()
-    counts = {"Cocconeis (ellipse)": 0, "Epithemia (coffee-bean)": 0, "Unknown": 0}
+    counts = {
+        "Round": 0,
+        "Cocconeis (ellipse)": 0,
+        "Epithemia (coffee-bean)": 0,
+        "Unknown": 0
+    }
 
     for cnt in contours:
         area = cv2.contourArea(cnt)
-        if 100 < area < 10000:
+        if 50 < area < 20000:
             label = classify_shape(cnt)
             counts[label] += 1
 
-            # Draw full shape (contour), not just bounding box
+            # Draw contour
             cv2.drawContours(result, [cnt], -1, (0, 255, 0), 2)
 
-            # Calculate center for placing the label
+            # Put label at center
             M = cv2.moments(cnt)
             if M["m00"] != 0:
                 cX = int(M["m10"] / M["m00"])
@@ -65,7 +80,8 @@ if uploaded_files:
         st.subheader(f"Results for: {uploaded_file.name}")
         st.image(processed_img, caption=f"Processed Image: {uploaded_file.name}", use_column_width=True)
 
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Cocconeis", shape_counts['Cocconeis (ellipse)'])
-        col2.metric("Epithemia", shape_counts['Epithemia (coffee-bean)'])
-        col3.metric("Unknown", shape_counts['Unknown'])
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Round", shape_counts["Round"])
+        col2.metric("Cocconeis", shape_counts["Cocconeis (ellipse)"])
+        col3.metric("Epithemia", shape_counts["Epithemia (coffee-bean)"])
+        col4.metric("Unknown", shape_counts["Unknown"])
