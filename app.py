@@ -5,7 +5,7 @@ from PIL import Image
 
 st.set_page_config(page_title="Shape Detector", layout="wide")
 st.title("🔍 Shape Detector")
-st.write("Upload one or more images to detect all available shapes in the image.")
+st.write("Upload one or more images to detect shapes in the size range of 150px to 250px in length/width.")
 
 uploaded_files = st.file_uploader("Upload image(s)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
 
@@ -22,10 +22,12 @@ def process_image(img_np):
     shape_count = 0
 
     for cnt in contours:
-        area = cv2.contourArea(cnt)
+        # Get the bounding box for the contour (x, y, w, h)
+        x, y, w, h = cv2.boundingRect(cnt)
+        area = w * h
 
-        # Adjust the area thresholds as needed
-        if 50 < area < 50000:  # Lower limit 50 and upper limit 50000 (you can adjust this based on image size)
+        # Filter based on the area of bounding box (150px to 250px in width/height range)
+        if 150 < w < 250 and 150 < h < 250:
             shape_count += 1
             # Draw all contours
             cv2.drawContours(result, [cnt], -1, (0, 255, 0), 2)
