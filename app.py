@@ -5,18 +5,23 @@ from PIL import Image
 
 st.set_page_config(page_title="Shape Detector", layout="wide")
 st.title("🔍 Shape Detector")
-st.write("Upload one or more images to detect shapes in the size range of 150px to 250px in length/width.")
+st.write("Upload one or more images to detect shapes that resemble red blood cells (gray/white in color) within the size range of 150px to 250px.")
 
 uploaded_files = st.file_uploader("Upload image(s)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
 
 def process_image(img_np):
+    # Convert to grayscale
     gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    thresh = cv2.adaptiveThreshold(
-        blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
-        cv2.THRESH_BINARY_INV, 11, 2
-    )
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    # Apply color-based filtering to focus on lighter regions (gray/white)
+    _, thresh = cv2.threshold(gray, 160, 255, cv2.THRESH_BINARY)
+    
+    # Remove small noise with morphological operations (e.g., opening)
+    kernel = np.ones((5, 5), np.uint8)
+    morph = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+
+    # Find contours
+    contours, _ = cv2.findContours(morph, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     result = img_np.copy()
     shape_count = 0
