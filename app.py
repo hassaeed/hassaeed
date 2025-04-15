@@ -80,6 +80,8 @@ def convert_tif_to_png(tif_file):
 
 if uploaded_files:
     for uploaded_file in uploaded_files:
+        file_name = uploaded_file.name  # Store the original file name
+
         # If the uploaded file is a TIFF, convert it to PNG
         if uploaded_file.type in ["image/tiff", "image/x-tiff"]:
             # Convert the TIFF file to PNG in memory
@@ -93,8 +95,8 @@ if uploaded_files:
         processed_img, shape_counts = process_image(img_np)
 
         # Show results in the Streamlit interface
-        st.subheader(f"Results for: {uploaded_file.name}")
-        st.image(processed_img, caption=f"Processed Image: {uploaded_file.name}", use_column_width=True)
+        st.subheader(f"Results for: {file_name}")
+        st.image(processed_img, caption=f"Processed Image: {file_name}", use_column_width=True)
 
         # Display metrics of detected shapes
         col1, col2, col3 = st.columns(3)
