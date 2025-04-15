@@ -3,12 +3,12 @@ import numpy as np
 import cv2
 from PIL import Image
 
-st.title("🔬 Diatom Shape Detector")
-st.write("Upload an image to detect Cocconeis (coin-like, circular) shaped diatoms.")
+st.title("🔬 Dark Circular Shape Detector")
+st.write("Upload an image to detect dark circular shapes (e.g., circular diatoms or objects).")
 
 uploaded_file = st.file_uploader("Upload image", type=["jpg", "jpeg", "png"])
 
-def is_coin_shape(contour):
+def is_circle(contour):
     # Calculate the contour's bounding box
     x, y, w, h = cv2.boundingRect(contour)
     
@@ -30,8 +30,8 @@ if uploaded_file is not None:
     # Apply Gaussian blur to reduce noise
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
-    # Threshold the image: simple binary thresholding
-    _, thresh = cv2.threshold(blurred, 50, 255, cv2.THRESH_BINARY_INV)
+    # Threshold the image to detect dark shapes (inverse of binary threshold)
+    _, thresh = cv2.threshold(blurred, 80, 255, cv2.THRESH_BINARY)
 
     # Find contours (only external ones)
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -39,13 +39,13 @@ if uploaded_file is not None:
     result = img_np.copy()
     count = 0
 
-    # Loop through each contour and check if it's coin-like
+    # Loop through each contour and check if it's circular
     for cnt in contours:
         area = cv2.contourArea(cnt)
         
         # Only consider contours with area between 100px and 5000px
         if 100 < area < 5000:
-            if is_coin_shape(cnt):
+            if is_circle(cnt):
                 # Draw the contour (outer boundary)
                 cv2.drawContours(result, [cnt], -1, (0, 255, 0), 2)
 
@@ -54,7 +54,7 @@ if uploaded_file is not None:
                 if M["m00"] != 0:
                     cX = int(M["m10"] / M["m00"])
                     cY = int(M["m01"] / M["m00"])
-                    cv2.putText(result, "Cocconeis (coin-like)", (cX - 50, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                    cv2.putText(result, "Dark Circle", (cX - 50, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
                 count += 1
 
-    st.image(result, caption=f"Detected {count} coin-like shapes.", use_column_width=True)
+    st.image(result, caption=f"Detected {count} dark circular shapes.", use_column_width=True)
