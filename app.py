@@ -5,7 +5,7 @@ from PIL import Image
 
 st.set_page_config(page_title="Diatom Shape Detector", layout="wide")
 st.title("🔬 Diatom Shape Detector")
-st.write("Upload one or more images to detect large Cocconeis (elliptical) and Lunate (half-moon) shaped diatoms.")
+st.write("Upload one or more images to detect Cocconeis (elliptical) and Epithemia (boomerang-shaped) diatoms.")
 
 uploaded_files = st.file_uploader("Upload image(s)", type=["jpg", "jpeg", "png", "tiff"], accept_multiple_files=True)
 
@@ -13,20 +13,21 @@ def classify_shape(contour):
     if len(contour) < 5:
         return "Unknown"
 
-    # Fit an ellipse to the contour
+    # Fit ellipse to the contour for Cocconeis
     ellipse = cv2.fitEllipse(contour)
     (center, axes, orientation) = ellipse
     major, minor = axes
-
     ratio = minor / major
 
-    # Detect elliptical and half-moon (lunate) shapes based on their aspect ratio
-    if 0.7 <= ratio <= 0.95:  # Cocconeis (ellipse)
+    # Cocconeis (ellipse) detection based on aspect ratio
+    if 0.75 <= ratio <= 0.95:  # Elliptical shapes
         return "Cocconeis (ellipse)"
-    elif 0.3 < ratio < 0.5:  # Lunate (half-moon) - Wider than tall (crescent shape)
-        return "Lunate (half-moon)"
-    else:
-        return "Unknown"
+    
+    # Epithemia (boomerang) - identifying the asymmetrical and curved shapes
+    elif 0.5 < ratio < 0.7:  # Asymmetrical, elongated but curved shapes
+        return "Epithemia (boomerang)"
+    
+    return "Unknown"
 
 def process_image(img_np):
     gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
@@ -47,15 +48,14 @@ def process_image(img_np):
 
     result = img_np.copy()
 
-    # Loop through the contours to detect shapes based on the aspect ratio
     for cnt in contours:
         area = cv2.contourArea(cnt)
-        if 100 < area < 250:  # Filter out small contours that are unlikely to be relevant
+        if 100 < area < 250:  # Filter based on the size of the contour
             label = classify_shape(cnt)
-            if label != "Unknown":  # Only process if it's one of the shapes we care about
+            if label != "Unknown":  # Only process known shapes
 
                 # Draw the contour on the image
-                cv2.drawContours(result, [cnt], -1, (0, 255, 0), 2)
+                cv2.drawContours(result, [cnt], -1, (0, 255, 0), 2)  # Green outline for detection
 
     return result
 
