@@ -3,38 +3,19 @@ import numpy as np
 import cv2
 from PIL import Image
 
-st.set_page_config(page_title="Diatom Shape Detector", layout="wide")
-st.title("🔬 Diatom Shape Detector")
-st.write("Upload image(s) to detect Cocconeis (ellipse), Epithemia (coffee-bean), and Round diatoms.")
+st.set_page_config(page_title="Roundish Shape Detector", layout="wide")
+st.title("🔍 Roundish Shape Detector")
+st.write("Upload image(s) to detect diatoms with round-ish shape (50–100% circular).")
 
 uploaded_files = st.file_uploader("Upload image(s)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
 
-def classify_shape(contour):
+def is_roundish(contour, min_circularity=0.5):
     area = cv2.contourArea(contour)
     perimeter = cv2.arcLength(contour, True)
-
     if perimeter == 0:
-        return "Unknown"
-
+        return False
     circularity = 4 * np.pi * area / (perimeter * perimeter)
-
-    # Optional: Draw ellipse if contour is big enough
-    if len(contour) >= 5:
-        ellipse = cv2.fitEllipse(contour)
-        (_, axes, _) = ellipse
-        major, minor = max(axes), min(axes)
-        ratio = minor / major
-    else:
-        ratio = 0
-
-    if circularity > 0.82:
-        return "Round"
-    elif 0.7 <= ratio <= 0.95:
-        return "Cocconeis (ellipse)"
-    elif 0.3 <= ratio < 0.65:
-        return "Epithemia (coffee-bean)"
-    else:
-        return "Unknown"
+    return min_circularity <= circularity <= 1.2  # allow some over-rounding due to artifacts
 
 def process_image(img_np):
     gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
@@ -46,42 +27,27 @@ def process_image(img_np):
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     result = img_np.copy()
-    counts = {
-        "Round": 0,
-        "Cocconeis (ellipse)": 0,
-        "Epithemia (coffee-bean)": 0,
-        "Unknown": 0
-    }
+    roundish_count = 0
 
     for cnt in contours:
         area = cv2.contourArea(cnt)
-        if 50 < area < 20000:
-            label = classify_shape(cnt)
-            counts[label] += 1
-
-            # Draw contour
+        if 80 < area < 20000 and is_roundish(cnt):
+            roundish_count += 1
             cv2.drawContours(result, [cnt], -1, (0, 255, 0), 2)
-
-            # Put label at center
             M = cv2.moments(cnt)
             if M["m00"] != 0:
                 cX = int(M["m10"] / M["m00"])
                 cY = int(M["m01"] / M["m00"])
-                cv2.putText(result, label, (cX - 50, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                cv2.putText(result, "Roundish", (cX - 40, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
-    return result, counts
+    return result, roundish_count
 
 if uploaded_files:
     for uploaded_file in uploaded_files:
         image = Image.open(uploaded_file).convert("RGB")
         img_np = np.array(image)
-        processed_img, shape_counts = process_image(img_np)
+        processed_img, count = process_image(img_np)
 
         st.subheader(f"Results for: {uploaded_file.name}")
-        st.image(processed_img, caption=f"Processed Image: {uploaded_file.name}", use_column_width=True)
-
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Round", shape_counts["Round"])
-        col2.metric("Cocconeis", shape_counts["Cocconeis (ellipse)"])
-        col3.metric("Epithemia", shape_counts["Epithemia (coffee-bean)"])
-        col4.metric("Unknown", shape_counts["Unknown"])
+        st.image(processed_img, caption=f"{count} round-ish shape(s) detected", use_column_width=True)
+        st.metric("Roundish Shapes Detected", count)
