@@ -11,48 +11,56 @@ uploaded_files = st.file_uploader("Upload image(s)", type=["jpg", "jpeg", "png"]
 
 def classify_shape(contour):
     if len(contour) < 5:
-        return "Unknown"
+        return None  # Return None if the contour is too small to classify
 
     # Fit ellipse and extract axis ratio
     ellipse = cv2.fitEllipse(contour)
     (_, axes, _) = ellipse
-    major, minor = max(axes), min(axes)
+    major, minor = axes
     ratio = minor / major
 
+    # Cocconeis detection: elliptical shapes with a ratio between 0.75 to 0.95
     if 0.75 <= ratio <= 0.95:
         return "Cocconeis (ellipse)"
+    
+    # Epithemia detection: coffee-bean shapes with a ratio between 0.3 to 0.65
     elif 0.3 <= ratio < 0.65:
         return "Epithemia (coffee-bean)"
-    else:
-        return "Unknown"
+    
+    return None  # If shape doesn't match either Cocconeis or Epithemia
 
 def process_image(img_np):
+    # Convert the image to grayscale
     gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
+
+    # Improve contrast with CLAHE (Contrast Limited Adaptive Histogram Equalization)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    gray = clahe.apply(gray)
+
+    # Apply Gaussian Blur to smooth the image and reduce noise
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    # Use adaptive thresholding to detect edges in the image
     thresh = cv2.adaptiveThreshold(
-        blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
-        cv2.THRESH_BINARY_INV, 11, 2
+        blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 11, 2
     )
+
+    # Find contours in the thresholded image
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     result = img_np.copy()
-    counts = {"Cocconeis (ellipse)": 0, "Epithemia (coffee-bean)": 0, "Unknown": 0}
+    counts = {"Cocconeis (ellipse)": 0, "Epithemia (coffee-bean)": 0}
 
     for cnt in contours:
         area = cv2.contourArea(cnt)
+
+        # Filter by contour area to focus on relevant sizes
         if 100 < area < 10000:
             label = classify_shape(cnt)
-            counts[label] += 1
-
-            # Draw full shape (contour), not just bounding box
-            cv2.drawContours(result, [cnt], -1, (0, 255, 0), 2)
-
-            # Calculate center for placing the label
-            M = cv2.moments(cnt)
-            if M["m00"] != 0:
-                cX = int(M["m10"] / M["m00"])
-                cY = int(M["m01"] / M["m00"])
-                cv2.putText(result, label, (cX - 50, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+            if label:  # Only process if it's either Cocconeis or Epithemia
+                counts[label] += 1
+                # Draw the contour with a green outline
+                cv2.drawContours(result, [cnt], -1, (0, 255, 0), 2)
 
     return result, counts
 
@@ -60,12 +68,15 @@ if uploaded_files:
     for uploaded_file in uploaded_files:
         image = Image.open(uploaded_file).convert("RGB")
         img_np = np.array(image)
+
+        # Process the image to detect Cocconeis and Epithemia shapes
         processed_img, shape_counts = process_image(img_np)
 
+        # Display the results
         st.subheader(f"Results for: {uploaded_file.name}")
-        st.image(processed_img, caption=f"Processed Image: {uploaded_file.name}", use_column_width=True)
+        st.image(processed_img, caption=f"Processed Image: {uploaded_file.name}", use_container_width=True)
 
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Cocconeis", shape_counts['Cocconeis (ellipse)'])
-        col2.metric("Epithemia", shape_counts['Epithemia (coffee-bean)'])
-        col3.metric("Unknown", shape_counts['Unknown'])
+        # Display the count of detected Cocconeis and Epithemia
+        col1, col2 = st.columns(2)
+        col1.metric("Cocconeis (ellipse)", shape_counts['Cocconeis (ellipse)'])
+        col2.metric("Epithemia (coffee-bean)", shape_counts['Epithemia (coffee-bean)'])
